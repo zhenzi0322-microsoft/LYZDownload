@@ -70,9 +70,10 @@ jobs:
             npm install
           fi
 
-      - name: 修正 frontendDist 路径
-        # vite outDir 为 "../dist"（相对于 demo/），实际输出在 workspace 根目录 dist/；
-        # Tauri frontendDist "../dist" 相对于 src-tauri/ 解析为 demo/dist，两者不一致。
+      - name: 修正 tauri.conf.json（frontendDist + bundle）
+        # 1) vite outDir "../dist" 相对于 demo/ 实际输出在 workspace 根 dist/，
+        #    但 Tauri frontendDist "../dist" 相对于 src-tauri/ 解析为 demo/dist，不一致。
+        # 2) 仓库可能未配置 macOS bundle targets，强制开启并设为 all。
         working-directory: demo
         shell: bash
         run: |
@@ -80,11 +81,20 @@ jobs:
             const fs = require("fs");
             const p = "src-tauri/tauri.conf.json";
             const conf = JSON.parse(fs.readFileSync(p, "utf8"));
+
+            // 修正 frontendDist
             if (conf.build && conf.build.frontendDist === "../dist") {
               conf.build.frontendDist = "../../dist";
-              fs.writeFileSync(p, JSON.stringify(conf, null, 2) + "\n");
-              console.log("patched frontendDist to ../../dist");
+              console.log("patched frontendDist -> ../../dist");
             }
+
+            // 确保 bundle 开启且 targets 包含 macOS
+            conf.bundle = conf.bundle || {};
+            conf.bundle.active = true;
+            conf.bundle.targets = "all";
+            console.log("ensured bundle.active=true, bundle.targets=all");
+
+            fs.writeFileSync(p, JSON.stringify(conf, null, 2) + "\n");
           '
 
       # 三种架构串行构建，不用 tauri-action（它会用 productName 拼产物路径，
