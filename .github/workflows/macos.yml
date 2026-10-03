@@ -104,24 +104,46 @@ jobs:
         shell: bash
         run: npx tauri build --target universal-apple-darwin
 
-      # 打印实际产物目录（方便调试名称不匹配问题）
+      # 打印实际产物目录（方便调试）
       - name: 列出构建产物
         shell: bash
         run: |
           for triple in aarch64-apple-darwin x86_64-apple-darwin universal-apple-darwin; do
             echo "=== $triple ==="
-            ls -la "demo/src-tauri/target/$triple/release/bundle/dmg/" 2>/dev/null || echo "  (no dmg dir)"
-            ls -la "demo/src-tauri/target/$triple/release/bundle/macos/" 2>/dev/null || echo "  (no macos dir)"
+            find "demo/src-tauri/target/$triple/release/bundle" -maxdepth 2 2>/dev/null || echo "  (no bundle dir)"
           done
+
+      # 把产物收集到 release-files/ 目录：优先用 DMG，没有则把 .app 压成 zip
+      - name: 收集产物到 release-files
+        shell: bash
+        run: |
+          mkdir -p release-files
+          for triple in aarch64-apple-darwin x86_64-apple-darwin universal-apple-darwin; do
+            dmg_dir="demo/src-tauri/target/$triple/release/bundle/dmg"
+            macos_dir="demo/src-tauri/target/$triple/release/bundle/macos"
+            # 有 DMG 直接拷贝
+            if ls "$dmg_dir"/*.dmg 1>/dev/null 2>&1; then
+              cp "$dmg_dir"/*.dmg release-files/
+            elif ls "$macos_dir"/*.app 1>/dev/null 2>&1 || ls -d "$macos_dir"/*.app 1>/dev/null 2>&1; then
+              # 无 DMG，把 .app 目录打包成 zip
+              for app in "$macos_dir"/*.app; do
+                [ -e "$app" ] || continue
+                name=$(basename "$app" .app)
+                echo "Zipping $app -> release-files/${name}_${triple}.zip"
+                (cd "$macos_dir" && zip -r -q "$GITHUB_WORKSPACE/release-files/${name}_${triple}.zip" "$name.app")
+              done
+            else
+              echo "::warning::No bundle found for $triple"
+            fi
+          done
+          echo "=== release-files ==="
+          ls -lh release-files/
 
       - name: 上传构建 artifact
         uses: actions/upload-artifact@v4
         with:
           name: LYZDownload-macos-bundles
-          path: |
-            demo/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-            demo/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
-            demo/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          path: release-files/*
           retention-days: 7
           if-no-files-found: warn
 
@@ -135,10 +157,7 @@ jobs:
           body: 'macOS 安装包：_aarch64（Apple Silicon）/ _x64（Intel）/ _universal（两种都能跑）。未签名，首次打开需右键 → 打开。'
           draft: true
           prerelease: false
-          files: |
-            demo/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-            demo/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
-            demo/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          files: release-files/*
 
 # ─────────────────────────────────────────────────────────────────────────
 # 补充说明
