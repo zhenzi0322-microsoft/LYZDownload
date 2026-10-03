@@ -101,20 +101,6 @@ jobs:
               console.log("tauri version set to " + process.argv[1]);
             ' "$VERSION"
           fi
-          # 修正 frontendDist 路径：CI 中 vite outDir 为 "../dist"（相对于 demo/），
-          # 实际输出在 workspace 根目录的 dist/；但 Tauri 的 frontendDist "../dist"
-          # 相对于 src-tauri/ 解析为 demo/dist，两者不一致。
-          # 改为 "../../dist" 使其解析到 workspace 根目录的 dist/。
-          node -e '
-            const fs = require("fs");
-            const p = "src-tauri/tauri.conf.json";
-            const conf = JSON.parse(fs.readFileSync(p, "utf8"));
-            if (conf.build && conf.build.frontendDist === "../dist") {
-              conf.build.frontendDist = "../../dist";
-              fs.writeFileSync(p, JSON.stringify(conf, null, 2) + "\n");
-              console.log("patched frontendDist to ../../dist");
-            }
-          '
           npm run tauri:build
 
       - name: 打印产物目录
