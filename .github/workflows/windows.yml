@@ -101,7 +101,7 @@ jobs:
               console.log("tauri version set to " + process.argv[1]);
             ' "$VERSION"
           fi
-          npm run tauri:build -- --bundles nsis
+          npm run tauri:build
 
       - name: 打印产物目录
         shell: pwsh
