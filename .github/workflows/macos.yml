@@ -117,7 +117,7 @@ jobs:
       - name: 上传构建 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JianLu-macos-bundles
+          name: LYZDownload-macos-bundles
           path: |
             demo/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
             demo/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
@@ -131,7 +131,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag_name || github.ref_name }}
-          name: 'JianLu v${{ inputs.tag_name || github.ref_name }}'
+          name: 'LYZDownload v${{ inputs.tag_name || github.ref_name }}'
           body: 'macOS 安装包：_aarch64（Apple Silicon）/ _x64（Intel）/ _universal（两种都能跑）。未签名，首次打开需右键 → 打开。'
           draft: true
           prerelease: false
