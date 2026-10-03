@@ -70,6 +70,23 @@ jobs:
             npm install
           fi
 
+      - name: 修正 frontendDist 路径
+        # vite outDir 为 "../dist"（相对于 demo/），实际输出在 workspace 根目录 dist/；
+        # Tauri frontendDist "../dist" 相对于 src-tauri/ 解析为 demo/dist，两者不一致。
+        working-directory: demo
+        shell: bash
+        run: |
+          node -e '
+            const fs = require("fs");
+            const p = "src-tauri/tauri.conf.json";
+            const conf = JSON.parse(fs.readFileSync(p, "utf8"));
+            if (conf.build && conf.build.frontendDist === "../dist") {
+              conf.build.frontendDist = "../../dist";
+              fs.writeFileSync(p, JSON.stringify(conf, null, 2) + "\n");
+              console.log("patched frontendDist to ../../dist");
+            }
+          '
+
       # 三种架构分三步串行构建：tauri-action 只按 args 里第一个 --target triple 拼产物
       # 目录，写在同一步里会只上传一种。第一步建 Release，后两步按 tag 找到同一个
       # draft 追加上传，也不会出现并行建 Release 的 422 竞态。
