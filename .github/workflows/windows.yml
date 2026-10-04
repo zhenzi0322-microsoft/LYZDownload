@@ -84,6 +84,9 @@ jobs:
           # 与发布步骤同源：手动触发取输入框，tag 推送取被推的 tag 名
           RELEASE_TAG: ${{ inputs.tag_name || github.ref_name }}
           EVENT_NAME: ${{ github.event_name }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # 手动触发且没填 tag：本来就不发 Release，包版本维持 tauri.conf.json 不动
           # （此时 RELEASE_TAG 会回落成分支名，不能当版本号用）
