@@ -55,5 +55,6 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "LYZDownload ${{ github.ref_name }}"
           releaseBody: "更新版本"
-          includeUpdaterArtifacts: true
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true
           args: ""
