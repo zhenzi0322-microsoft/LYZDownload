@@ -1,0 +1,58 @@
+name: Release
+
+# 自动构建并发布到 GitHub Releases，同时生成自动更新所需的
+# latest.json + 安装包签名 (.sig)。打 tag（如 v0.3.5）推送即触发。
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      # 源码在 Codeup 私有库，本 GitHub 仓库只有 README/workflow，
+      # 所以后面所有构建步骤都必须显式指向 demo 目录。
+      - name: Clone Codeup private repo into demo
+        env:
+          CODEUP_TOKEN: ${{ secrets.CODEUP_TOKEN }}
+        # 用 pwsh 的 ${env:...} 取变量，而不是 ${{ }} 直接拼进命令行，
+        # 避免 token 出现在进程命令行里。
+        run: |
+          git clone "https://oauth2:${env:CODEUP_TOKEN}@codeup.aliyun.com/zheniz0322/LYZDownload.git" demo
+        shell: pwsh
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      # tauri-action 会：① 执行 beforeBuildCommand(npm run build) ② 用仓库密钥签名
+      # ③ 产出安装包 + .sig + latest.json ④ 上传到本次 tag 的 Release。
+      # includeUpdaterArtifacts: true 是关键：它负责生成并上传 latest.json，
+      # 这样端点的 https://github.com/.../releases/latest/download/latest.json 才有内容。
+      - name: Build & Publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          # 私钥：在仓库 Settings → Secrets 里配置 TAURI_SIGNING_PRIVATE_KEY
+          # （内容 = 你本地 `npm run tauri signer generate` 生成的 .key 文件全文）。
+          # 若生成时设了密码，再配 TAURI_SIGNING_PRIVATE_KEY_PASSWORD。
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "LYZDownload ${{ github.ref_name }}"
+          releaseBody: "更新版本"
+          includeUpdaterArtifacts: true
+          args: ""
