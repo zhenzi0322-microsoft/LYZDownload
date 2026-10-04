@@ -35,6 +35,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install frontend dependencies
+        working-directory: demo
         run: npm install
 
       # tauri-action 会：① 执行 beforeBuildCommand(npm run build) ② 用仓库密钥签名
@@ -43,6 +44,7 @@ jobs:
       # 这样端点的 https://github.com/.../releases/latest/download/latest.json 才有内容。
       - name: Build & Publish
         uses: tauri-apps/tauri-action@v0
+        working-directory: demo
         env:
           # 私钥：在仓库 Settings → Secrets 里配置 TAURI_SIGNING_PRIVATE_KEY
           # （内容 = 你本地 `npm run tauri signer generate` 生成的 .key 文件全文）。
