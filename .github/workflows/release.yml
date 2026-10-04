@@ -54,7 +54,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "LYZDownload ${{ github.ref_name }}"
-          releaseBody: "更新版本"
+          releaseBody: "1. 修复下拉按钮图标问题.\n2. 优化界面布局."
           includeUpdaterJson: true
           updaterJsonPreferNsis: true
           args: ""
