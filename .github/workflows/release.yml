@@ -84,6 +84,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install frontend dependencies
+        working-directory: demo
         run: npm install
 
       # tauri-action 会：① 执行 beforeBuildCommand(npm run build) ② 用仓库密钥签名
