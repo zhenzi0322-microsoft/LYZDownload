@@ -40,11 +40,30 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            bundles: nsis
+            args: --bundles nsis
             label: Windows
           - os: ubuntu-22.04
-            bundles: appimage
+            args: --bundles appimage
             label: Linux
+          # ── macOS ─────────────────────────────────────────────────────
+          # ⚠️ macOS **无法从 Windows/Linux 交叉打包**，必须有 macOS runner，
+          #    所以是独立的两条矩阵项（不是加个 target 就完事）。
+          # 架构对应：macos-14 是 arm64、macos-13 是 x86_64，
+          # 各自的 --target 就是该 runner 的**原生架构**，不涉及交叉编译。
+          # 两条都出，Intel 与 Apple Silicon 用户都能收到自动更新
+          # （latest.json 里分别落到 darwin-x86_64 / darwin-aarch64 两个 key）。
+          # 用 --bundles app 而非 dmg：.app.tar.gz + .sig 才是 updater 认的产物；
+          # dmg 只是给「首次手动下载」用的安装盘，这里优先保证更新链路可靠。
+          # 想同时出 dmg，就给下面两项的 args 补 ,dmg。
+          #
+          # ⚠️ 不用 macos-latest：它会随时间漂移（runner 系统版本升 = 最低 macOS
+          #    兼容线被抬高，老机器装不上/跑不了）。写死具体版本号更可控。
+          - os: macos-14
+            args: --target aarch64-apple-darwin --bundles app
+            label: macOS (Apple Silicon)
+          - os: macos-13
+            args: --target x86_64-apple-darwin --bundles app
+            label: macOS (Intel)
     name: Build ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -97,6 +116,7 @@ jobs:
       # args 里用 --bundles 按平台覆盖打包目标：tauri.conf.json 的
       # `bundle.targets` 写的是 ["nsis"]（Windows 专属），若不覆盖，
       # 在 Linux 上会尝试打 NSIS 并直接失败。
+
       - name: Build & Publish
         uses: tauri-apps/tauri-action@v0
         env:
@@ -109,7 +129,29 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "LYZDownload ${{ github.ref_name }}"
-          releaseBody: "修复bug"
+          # ── 更新说明（**每次发版前手动改这里**）─────────────────────────
+          # 这段文字会：① 显示在 GitHub Release 页面；② 写进 latest.json 的 notes；
+          #            ③ 在应用内「发现新版本」弹窗里作为更新说明展示。
+          # 支持 Markdown（前端会渲染标题、列表、行内代码与粗体）。
+          # 下面预填的是 v0.4.0 的内容，下次发版请整份替换。
+          releaseBody: |
+            ## 新增
+            - 全新支持 macOS（Apple Silicon + Intel），自动更新同步覆盖
+            - 全新支持 Linux，发布 AppImage
+            - 检查更新命中新版时改为弹窗提示，并展示更新说明
+            - 协议唤起（浏览器扩展）改为弹窗确认，可改文件名、目录、代理与分类
+
+            ## 修复
+            - 修复 AppImage 启动后导致系统文件管理器（nautilus）崩溃：移除打包进包的 OpenSSL
+            - 修复文件后缀错误：URL 为 `.img` / `.php` 等占位后缀时，按 Content-Type 纠正为真实类型
+            - 修复「漏 import 导致初始化中断，全站按钮失效」
+            - 修复添加任务弹窗点外围误关闭导致已填内容丢失
+
+            ## 优化
+            - 添加任务弹窗标题图标缩小并与标题对齐
+            - 协议唤起弹窗的保存目录默认沿用上一次实际使用的目录
           includeUpdaterJson: true
           updaterJsonPreferNsis: true
-          args: --bundles ${{ matrix.bundles }}
+          # 打包目标按平台在 matrix 里定好（Windows=nsis / Linux=appimage /
+          # macOS=app+--target），这里原样透传。
+          args: ${{ matrix.args }}
