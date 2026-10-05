@@ -59,10 +59,10 @@ jobs:
           # ⚠️ 不用 macos-latest：它会随时间漂移（runner 系统版本升 = 最低 macOS
           #    兼容线被抬高，老机器装不上/跑不了）。写死具体版本号更可控。
           - os: macos-14
-            args: --target aarch64-apple-darwin --bundles app
+            args: --target aarch64-apple-darwin --bundles app,dmg
             label: macOS (Apple Silicon)
           - os: macos-13
-            args: --target x86_64-apple-darwin --bundles app
+            args: --target x86_64-apple-darwin --bundles app,dmg
             label: macOS (Intel)
     name: Build ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
