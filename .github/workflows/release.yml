@@ -27,6 +27,17 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: '要创建 / 更新的 Release tag（手动触发时填写；tag 推送触发可留空）'
+        required: false
+        default: ''
+        type: string   # 显式声明单行文本框，网页显示输入框
+      release_body:
+        description: "Release 更新说明，可粘贴换行文本"
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: write
@@ -61,7 +72,7 @@ jobs:
           - os: macos-14
             args: --target aarch64-apple-darwin --bundles app,dmg
             label: macOS (Apple Silicon)
-          - os: macos-13
+          - os: macos-14
             args: --target x86_64-apple-darwin --bundles app,dmg
             label: macOS (Intel)
     name: Build ${{ matrix.label }}
@@ -101,6 +112,11 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+      
+      - name: Add macOS cross targets
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
 
       - name: Install frontend dependencies
         working-directory: demo
@@ -127,29 +143,14 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "LYZDownload ${{ github.ref_name }}"
+          tagName: ${{ inputs.tag_name || github.ref_name }}
+          releaseName: "LYZDownload ${{ inputs.tag_name || github.ref_name }}"
           # ── 更新说明（**每次发版前手动改这里**）─────────────────────────
           # 这段文字会：① 显示在 GitHub Release 页面；② 写进 latest.json 的 notes；
           #            ③ 在应用内「发现新版本」弹窗里作为更新说明展示。
           # 支持 Markdown（前端会渲染标题、列表、行内代码与粗体）。
           # 下面预填的是 v0.4.0 的内容，下次发版请整份替换。
-          releaseBody: |
-            ## 新增
-            - 全新支持 macOS（Apple Silicon + Intel），自动更新同步覆盖
-            - 全新支持 Linux，发布 AppImage
-            - 检查更新命中新版时改为弹窗提示，并展示更新说明
-            - 协议唤起（浏览器扩展）改为弹窗确认，可改文件名、目录、代理与分类
-
-            ## 修复
-            - 修复 AppImage 启动后导致系统文件管理器（nautilus）崩溃：移除打包进包的 OpenSSL
-            - 修复文件后缀错误：URL 为 `.img` / `.php` 等占位后缀时，按 Content-Type 纠正为真实类型
-            - 修复「漏 import 导致初始化中断，全站按钮失效」
-            - 修复添加任务弹窗点外围误关闭导致已填内容丢失
-
-            ## 优化
-            - 添加任务弹窗标题图标缩小并与标题对齐
-            - 协议唤起弹窗的保存目录默认沿用上一次实际使用的目录
+          releaseBody: ${{ inputs.release_body }}
           includeUpdaterJson: true
           updaterJsonPreferNsis: true
           # 打包目标按平台在 matrix 里定好（Windows=nsis / Linux=appimage /
