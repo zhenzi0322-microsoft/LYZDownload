@@ -118,15 +118,16 @@ jobs:
         run: npm install
 
       # 从 demo/docs/RELEASE_NOTES.md 按本次版本号取出更新说明，供下方 tauri-action 的
-      # releaseBody 使用（发版只改 RELEASE_NOTES.md，不动本文件）。用 node 保证跨平台。
+      # releaseBody 使用（发版只改 RELEASE_NOTES.md，不动本文件）。用 bash 调 node，跨平台通用。
       # 版本号优先取本次 tag（inputs.tag_name || github.ref_name），退回 tauri.conf.json 的 version。
       - name: Resolve release notes
         id: relnotes
         working-directory: demo
-        shell: node
+        shell: bash
         env:
           RELEASE_TAG: ${{ inputs.tag_name || github.ref_name }}
         run: |
+          cat > "$RUNNER_TEMP/relnotes.cjs" <<'NODE_EOF'
           const fs = require("fs");
           const file = "docs/RELEASE_NOTES.md";
           if (!fs.existsSync(file)) {
@@ -162,6 +163,8 @@ jobs:
           const full = "# LYZDownload v" + used + "\n\n" + body + "\n";
           fs.appendFileSync(process.env.GITHUB_OUTPUT, "body<<__RN_EOF__\n" + full + "__RN_EOF__\n");
           console.log("release notes resolved for v" + used + " (" + full.length + " chars)");
+          NODE_EOF
+          node "$RUNNER_TEMP/relnotes.cjs"
 
       # tauri-action 会：① 执行 beforeBuildCommand(npm run build) ② 用仓库密钥签名
       # ③ 产出安装包 + .sig + latest.json ④ 上传到本次 tag 的 Release。
